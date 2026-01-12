@@ -11,31 +11,70 @@ export function useChat() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages]);
 
   async function sendMessage() {
     if (!input.trim() || loading) return;
 
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const userText = input;
     setInput("");
     setLoading(true);
 
-    const res = await fetch("http://localhost:3000/chat", {
+    // 1️⃣ Add user message + empty AI placeholder
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: userText },
+      { role: "ai", content: "" }
+    ]);
+
+    const res = await fetch("http://localhost:3000/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sessionId: SESSION_ID,
-        message: userMessage.content
+        message: userText
       })
     });
 
-    const data = await res.json();
+    if (!res.body) {
+      setLoading(false);
+      return;
+    }
 
-    setMessages((prev) => [
-      ...prev,
-      { role: "ai", content: data.reply }
-    ]);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    let accumulated = ""; // 👈 tracks what we have already rendered
+    let done = false;
+
+    while (!done) {
+      const { value, done: doneReading } = await reader.read();
+      done = doneReading;
+
+      if (!value) continue;
+
+      const chunk = decoder.decode(value, { stream: true });
+
+      if (!chunk) continue;
+
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+
+        if (last.role === "ai") {
+          // ✅ deduplicate overlapping chunks
+          if (chunk.startsWith(accumulated)) {
+            last.content = chunk;
+          } else {
+            last.content += chunk.replace(accumulated, "");
+          }
+
+          accumulated = last.content;
+        }
+
+        return updated;
+      });
+    }
 
     setLoading(false);
   }
