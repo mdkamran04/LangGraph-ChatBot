@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "@langchain/core": "^1.1.12",
+    "@langchain/google-genai": "^2.1.7",
+    "@langchain/groq": "^1.0.2",
+    "@langchain/langgraph": "^1.0.15",
+    "dotenv": "^17.2.3",
+    "groq-sdk": "^0.37.0"
+  },
+  "name": "langgraph-demo",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
