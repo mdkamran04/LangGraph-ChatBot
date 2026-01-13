@@ -1,40 +1,50 @@
-import { chatGraph } from "../graph";
 import { HumanMessage } from "@langchain/core/messages";
 import { llmStreamNode } from "../nodes/llm.stream.node";
 import { ChatState } from "../state/chat.state";
 import { StateGraph, START, END } from "@langchain/langgraph";
+import { getSession, saveSession } from "../state/session.store";
 
 export async function handleChatStream(req: Request) {
+  const body = (await req.json()) as {
+    message: string;
+    sessionId: string;
+  };
 
-    const body = await req.json() as { message: string };
-    const { message } = body;
+  const { message, sessionId } = body;
 
-    const encoder = new TextEncoder();
+  const encoder = new TextEncoder();
 
-    const stream = new ReadableStream({
-        async start(controller) {
-            const streamingGraph = new StateGraph(ChatState)
-                .addNode("llm_stream", (state) =>
-                    llmStreamNode(state, (token) => {
-                        controller.enqueue(encoder.encode(token));
-                    })
-                )
-                .addEdge(START, "llm_stream")
-                .addEdge("llm_stream", END)
-                .compile();
+  const previousState = getSession(sessionId);
 
-            await streamingGraph.invoke({
-                messages: [new HumanMessage(message)]
-            });
+  const stream = new ReadableStream({
+    async start(controller) {
+      const streamingGraph = new StateGraph(ChatState)
+        .addNode("llm_stream", (state) =>
+          llmStreamNode(state, (token) => {
+            controller.enqueue(encoder.encode(token));
+          })
+        )
+        .addEdge(START, "llm_stream")
+        .addEdge("llm_stream", END)
+        .compile();
 
-            controller.close();
-        }
-    });
+      const result = await streamingGraph.invoke({
+        messages: previousState
+          ? [...previousState.messages, new HumanMessage(message)]
+          : [new HumanMessage(message)]
+      });
 
-    return new Response(stream, {
-        headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Transfer-Encoding": "chunked"
-        }
-    });
+      // ✅ SAVE updated state
+      saveSession(sessionId, result);
+
+      controller.close();
+    }
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Transfer-Encoding": "chunked"
+    }
+  });
 }

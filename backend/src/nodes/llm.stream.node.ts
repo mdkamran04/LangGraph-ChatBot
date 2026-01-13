@@ -24,16 +24,26 @@ export async function llmStreamNode(
         content: m.content as string
       };
     }),
-    temperature: 0.7,
+    temperature: 0.5,
     stream: true
   });
 
   let fullText = "";
+  let streamedText = ""; // 👈 what we have already sent to client
 
   for await (const chunk of stream) {
-    const token = chunk.choices[0]?.delta?.content ?? "";
-    fullText += token;
-    onToken?.(token);
+    const delta = chunk.choices[0]?.delta?.content ?? "";
+    if (!delta) continue;
+
+    fullText += delta;
+
+    // ✅ ONLY send new text (dedupe backend-side)
+    const newText = fullText.slice(streamedText.length);
+
+    if (newText) {
+      onToken?.(newText);
+      streamedText += newText;
+    }
   }
 
   if (!fullText) {

@@ -17,7 +17,7 @@ export async function llmNode(state: ChatStateType) {
         content: m.content as string
       };
     }),
-    temperature: 0.7
+    temperature: 0.5
   });
 
   const content = completion.choices[0]?.message.content;

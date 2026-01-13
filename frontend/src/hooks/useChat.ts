@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { Message } from "../types/chat";
 
-const SESSION_ID = crypto.randomUUID();
+// Persist sessionId across requests
+const SESSION_ID =
+  sessionStorage.getItem("sessionId") ??
+  (() => {
+    const id = crypto.randomUUID();
+    sessionStorage.setItem("sessionId", id);
+    return id;
+  })();
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -20,12 +27,20 @@ export function useChat() {
     setInput("");
     setLoading(true);
 
-    // 1️⃣ Add user message + empty AI placeholder
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: userText },
-      { role: "ai", content: "" }
-    ]);
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: userText
+    };
+
+    const aiMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "ai",
+      content: ""
+    };
+
+    // Add user + empty AI message
+    setMessages((prev) => [...prev, userMessage, aiMessage]);
 
     const res = await fetch("http://localhost:3000/chat/stream", {
       method: "POST",
@@ -44,33 +59,26 @@ export function useChat() {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
 
-    let accumulated = ""; // 👈 tracks what we have already rendered
-    let done = false;
-
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
       if (!value) continue;
 
       const chunk = decoder.decode(value, { stream: true });
-
       if (!chunk) continue;
 
+      // ✅ PURE, IMMUTABLE UPDATE (StrictMode-safe)
       setMessages((prev) => {
+        const lastIndex = prev.length - 1;
+        const last = prev[lastIndex];
+
+        if (!last || last.role !== "ai") return prev;
+
         const updated = [...prev];
-        const last = updated[updated.length - 1];
-
-        if (last.role === "ai") {
-          // ✅ deduplicate overlapping chunks
-          if (chunk.startsWith(accumulated)) {
-            last.content = chunk;
-          } else {
-            last.content += chunk.replace(accumulated, "");
-          }
-
-          accumulated = last.content;
-        }
+        updated[lastIndex] = {
+          ...last,
+          content: last.content + chunk
+        };
 
         return updated;
       });
