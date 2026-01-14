@@ -12,7 +12,7 @@ export function MessageList({
 }) {
   return (
     <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
-      {messages.map((m, i) => (
+      {messages.map((m) => (
         <MessageBubble key={m.id} message={m} />
 
       ))}
