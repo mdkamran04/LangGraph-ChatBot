@@ -1,8 +1,12 @@
 import { HumanMessage } from "@langchain/core/messages";
-import { llmStreamNode } from "../nodes/llm.stream.node";
-import { ChatState } from "../state/chat.state";
 import { StateGraph, START, END } from "@langchain/langgraph";
-import { getSession, saveSession } from "../state/session.store";
+import { ChatState } from "../state/chat.state";
+import { llmStreamNode } from "../nodes/llm.stream.node";
+import {
+  upsertSession,
+  insertMessage,
+  getMessagesBySession,
+} from "../db/queries";
 
 export async function handleChatStream(req: Request) {
   const body = (await req.json()) as {
@@ -11,40 +15,66 @@ export async function handleChatStream(req: Request) {
   };
 
   const { message, sessionId } = body;
-
   const encoder = new TextEncoder();
 
-  const previousState = getSession(sessionId);
+  // 1️⃣ ensure session exists
+  await upsertSession(sessionId);
+
+  // 2️⃣ save user message
+  await insertMessage({
+    id: crypto.randomUUID(),
+    sessionId,
+    role: "user",
+    content: message,
+  });
+
+  // 3️⃣ load history from DB
+  const history = await getMessagesBySession(sessionId, 20);
+
+  let fullAIResponse = "";
 
   const stream = new ReadableStream({
     async start(controller) {
-      const streamingGraph = new StateGraph(ChatState)
-        .addNode("llm_stream", (state) =>
-          llmStreamNode(state, (token) => {
-            controller.enqueue(encoder.encode(token));
-          })
-        )
-        .addEdge(START, "llm_stream")
-        .addEdge("llm_stream", END)
-        .compile();
+      try {
+        const streamingGraph = new StateGraph(ChatState)
+          .addNode("llm_stream", (state) =>
+            llmStreamNode(state, (token: string) => {
+              fullAIResponse += token;
+              controller.enqueue(encoder.encode(token));
+            })
+          )
+          .addEdge(START, "llm_stream")
+          .addEdge("llm_stream", END)
+          .compile();
 
-      const result = await streamingGraph.invoke({
-        messages: previousState
-          ? [...previousState.messages, new HumanMessage(message)]
-          : [new HumanMessage(message)]
-      });
+        await streamingGraph.invoke({
+          messages: [
+            ...history.reverse().map((m) => new HumanMessage(m.content)),
+            new HumanMessage(message),
+          ],
+        });
 
-      // ✅ SAVE updated state
-      saveSession(sessionId, result);
+        // 4️⃣ save final AI message
+        if (fullAIResponse.trim()) {
+          await insertMessage({
+            id: crypto.randomUUID(),
+            sessionId,
+            role: "ai",
+            content: fullAIResponse,
+          });
+        }
 
-      controller.close();
-    }
+        controller.close();
+      } catch (err) {
+        controller.error(err);
+      }
+    },
   });
 
   return new Response(stream, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Transfer-Encoding": "chunked"
-    }
+      "Transfer-Encoding": "chunked",
+    },
   });
 }

@@ -1,27 +1,39 @@
 import { useEffect, useRef, useState } from "react";
 import type { Message } from "../types/chat";
 
-// Persist sessionId across requests
-const SESSION_ID =
-  sessionStorage.getItem("sessionId") ??
-  (() => {
-    const id = crypto.randomUUID();
-    sessionStorage.setItem("sessionId", id);
-    return id;
-  })();
-
-export function useChat() {
+export function useChat(sessionId: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // 🔁 Load messages when session changes
+  useEffect(() => {
+    if (!sessionId) return;
+
+    async function loadMessages() {
+      setMessages([]);
+      setLoading(true);
+
+      const res = await fetch(
+        `http://localhost:3000/messages?sessionId=${sessionId}`
+      );
+
+      const data = await res.json();
+      setMessages(data);
+      setLoading(false);
+    }
+
+    loadMessages();
+  }, [sessionId]);
+
+  // auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   async function sendMessage() {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || !sessionId) return;
 
     const userText = input;
     setInput("");
@@ -30,25 +42,25 @@ export function useChat() {
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
-      content: userText
+      content: userText,
     };
 
     const aiMessage: Message = {
       id: crypto.randomUUID(),
       role: "ai",
-      content: ""
+      content: "",
     };
 
-    // Add user + empty AI message
+    // optimistic UI
     setMessages((prev) => [...prev, userMessage, aiMessage]);
 
     const res = await fetch("http://localhost:3000/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        sessionId: SESSION_ID,
-        message: userText
-      })
+        sessionId,
+        message: userText,
+      }),
     });
 
     if (!res.body) {
@@ -67,7 +79,6 @@ export function useChat() {
       const chunk = decoder.decode(value, { stream: true });
       if (!chunk) continue;
 
-      // ✅ PURE, IMMUTABLE UPDATE (StrictMode-safe)
       setMessages((prev) => {
         const lastIndex = prev.length - 1;
         const last = prev[lastIndex];
@@ -77,7 +88,7 @@ export function useChat() {
         const updated = [...prev];
         updated[lastIndex] = {
           ...last,
-          content: last.content + chunk
+          content: last.content + chunk,
         };
 
         return updated;
@@ -93,6 +104,6 @@ export function useChat() {
     setInput,
     loading,
     sendMessage,
-    bottomRef
+    bottomRef,
   };
 }

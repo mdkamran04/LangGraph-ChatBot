@@ -1,5 +1,13 @@
 import { handleChat } from "./api/chat.route";
 import { handleChatStream } from "./api/chat.stream.route";
+import { handleGetMessages } from "./api/messages.route";
+import { handleGetSessions } from "./api/sessions.route";
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "http://localhost:5173",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
 
 Bun.serve({
   port: 3000,
@@ -7,51 +15,36 @@ Bun.serve({
   fetch: async (req) => {
     const url = new URL(req.url);
 
-    // 🔹 CORS preflight
+    // 🔹 Preflight
     if (req.method === "OPTIONS") {
-      return new Response(null, {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type"
-        }
-      });
+      return new Response(null, { headers: CORS_HEADERS });
     }
 
-    // 🔹 Normal chat
+    let res: Response;
+
     if (req.method === "POST" && url.pathname === "/chat") {
-      const res = await handleChat(req);
-
-      return new Response(res.body, {
-        status: res.status,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        }
-      });
+      res = await handleChat(req);
+    } else if (req.method === "POST" && url.pathname === "/chat/stream") {
+      res = await handleChatStream(req);
+    } else if (req.method === "GET" && url.pathname === "/sessions") {
+      res = await handleGetSessions();
+    } else if (req.method === "GET" && url.pathname === "/messages") {
+      res = await handleGetMessages(req);
+    } else {
+      res = new Response("Not Found", { status: 404 });
     }
 
-    // 🔹 Streaming chat
-    if (req.method === "POST" && url.pathname === "/chat/stream") {
-      const res = await handleChatStream(req);
+    // 🔹 Attach CORS headers to every response
+    const headers = new Headers(res.headers);
+    Object.entries(CORS_HEADERS).forEach(([k, v]) =>
+      headers.set(k, v)
+    );
 
-      return new Response(res.body, {
-        status: res.status,
-        headers: {
-          ...Object.fromEntries(res.headers),
-          "Access-Control-Allow-Origin": "*"
-        }
-      });
-    }
-
-    // 🔹 Fallback
-    return new Response("Not Found", {
-      status: 404,
-      headers: {
-        "Access-Control-Allow-Origin": "*"
-      }
+    return new Response(res.body, {
+      status: res.status,
+      headers,
     });
-  }
+  },
 });
 
 console.log("Backend running on http://localhost:3000");
