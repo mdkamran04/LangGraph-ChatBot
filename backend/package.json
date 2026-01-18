@@ -5,12 +5,15 @@
     "@langchain/groq": "^1.0.2",
     "@langchain/langgraph": "^1.0.15",
     "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.45.1",
     "groq-sdk": "^0.37.0"
   },
   "name": "langgraph-demo",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/bun": "latest",
+    "drizzle-kit": "^0.31.8"
   },
   "peerDependencies": {
     "typescript": "^5"

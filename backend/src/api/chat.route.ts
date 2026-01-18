@@ -1,6 +1,10 @@
 import { chatGraph } from "../graph";
-import { HumanMessage } from "@langchain/core/messages";
-import { getSession, saveSession } from "../state/session.store";
+import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import {
+  upsertSession,
+  insertMessage,
+  getMessagesBySession,
+} from "../db/queries";
 
 type ChatRequestBody = {
   message: string;
@@ -13,7 +17,7 @@ export async function handleChat(req: Request) {
 
   const id = sessionId ?? "default";
 
-  // keep your exit handling exactly as-is
+  // keep exit handling exactly as-is
   if (
     message.toLowerCase().includes("bye") ||
     message.toLowerCase().includes("exit")
@@ -21,27 +25,52 @@ export async function handleChat(req: Request) {
     return new Response(
       JSON.stringify({
         reply:
-          "Goodbye! Feel free to reach out anytime you have more questions. Take care!"
+          "Goodbye! Feel free to reach out anytime you have more questions. Take care!",
       }),
       { headers: { "Content-Type": "application/json" } }
     );
   }
 
-  // load previous conversation (if any)
-  const previousState = getSession(id);
+  // 1️⃣ ensure session exists
+  await upsertSession(id);
 
-  const result = await chatGraph.invoke({
-    messages: previousState
-      ? [...previousState.messages, new HumanMessage(message)]
-      : [new HumanMessage(message)]
+  // 2️⃣ save user message
+  await insertMessage({
+    id: crypto.randomUUID(),
+    sessionId: id,
+    role: "user",
+    content: message,
   });
 
-  // save updated conversation
-  saveSession(id, result);
+  // 3️⃣ load previous conversation from DB
+  const history = await getMessagesBySession(id, 20);
+
+  const langchainMessages = history
+    .reverse()
+    .map((m) =>
+      m.role === "user"
+        ? new HumanMessage(m.content)
+        : new AIMessage(m.content)
+    );
+
+  // 4️⃣ run LangGraph
+  const result = await chatGraph.invoke({
+    messages: langchainMessages,
+  });
+
+  const aiContent = result.messages.at(-1)?.content as string;
+
+  // 5️⃣ save AI response
+  await insertMessage({
+    id: crypto.randomUUID(),
+    sessionId: id,
+    role: "ai",
+    content: aiContent,
+  });
 
   return new Response(
     JSON.stringify({
-      reply: result.messages.at(-1)?.content
+      reply: aiContent,
     }),
     { headers: { "Content-Type": "application/json" } }
   );
