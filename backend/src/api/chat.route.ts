@@ -31,8 +31,13 @@ export async function handleChat(req: Request) {
     );
   }
 
-  // 1️⃣ ensure session exists
-  await upsertSession(id);
+  // 1️⃣ generate title ONLY from first message
+  const title =
+    message.length > 40 ? message.slice(0, 40) + "…" : message;
+
+  // ensure session exists (title only applied on first insert)
+  await upsertSession(id, title);
+
 
   // 2️⃣ save user message
   await insertMessage({

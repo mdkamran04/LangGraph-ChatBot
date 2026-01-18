@@ -1,13 +1,15 @@
 import { handleChat } from "./api/chat.route";
 import { handleChatStream } from "./api/chat.stream.route";
+import { handleDeleteSession } from "./api/delete-session.route";
 import { handleGetMessages } from "./api/messages.route";
 import { handleGetSessions } from "./api/sessions.route";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "http://localhost:5173",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
+
 
 Bun.serve({
   port: 3000,
@@ -30,7 +32,11 @@ Bun.serve({
       res = await handleGetSessions();
     } else if (req.method === "GET" && url.pathname === "/messages") {
       res = await handleGetMessages(req);
-    } else {
+    }
+    else if (req.method === "DELETE" && url.pathname === "/sessions") {
+      res = await handleDeleteSession(req);
+    }
+    else {
       res = new Response("Not Found", { status: 404 });
     }
 

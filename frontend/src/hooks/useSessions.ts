@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 
 export type Session = {
   id: string;
+  title?: string;
   updatedAt: number;
 };
+
 
 export function useSessions() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -18,6 +20,18 @@ export function useSessions() {
       setActiveSessionId(data[0].id);
     }
   }
+  async function deleteSession(id: string) {
+  await fetch(`http://localhost:3000/sessions?sessionId=${id}`, {
+    method: "DELETE",
+  });
+
+  setSessions((prev) => prev.filter((s) => s.id !== id));
+
+  if (activeSessionId === id) {
+    setActiveSessionId(null);
+  }
+}
+
 
   function createNewSession() {
     const id = crypto.randomUUID();
@@ -34,5 +48,6 @@ export function useSessions() {
     activeSessionId,
     setActiveSessionId,
     createNewSession,
+    deleteSession,
   };
 }

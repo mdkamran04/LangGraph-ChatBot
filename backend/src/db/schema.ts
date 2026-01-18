@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 /* ========== Sessions (Threads) ========== */
 export const sessions = sqliteTable("sessions", {
   id: text("id").primaryKey(), // sessionId / threadId
+  title: text("title"),
   createdAt: integer("created_at")
     .notNull()
     .default(sql`(strftime('%s','now'))`),

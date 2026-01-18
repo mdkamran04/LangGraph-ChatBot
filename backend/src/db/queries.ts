@@ -4,11 +4,17 @@ import { eq, desc } from "drizzle-orm";
 
 /* ---------- Sessions ---------- */
 
-export async function upsertSession(sessionId: string) {
-  // Try insert; if exists, just update timestamp
+export async function upsertSession(
+  sessionId: string,
+  title?: string
+) {
   await db
     .insert(sessions)
-    .values({ id: sessionId })
+    .values({
+      id: sessionId,
+      title,
+      updatedAt: Math.floor(Date.now() / 1000),
+    })
     .onConflictDoUpdate({
       target: sessions.id,
       set: {

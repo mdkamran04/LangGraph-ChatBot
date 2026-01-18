@@ -17,8 +17,13 @@ export async function handleChatStream(req: Request) {
   const { message, sessionId } = body;
   const encoder = new TextEncoder();
 
-  // 1️⃣ ensure session exists
-  await upsertSession(sessionId);
+  // 1️⃣ generate title ONLY from first message
+  const title =
+    message.length > 40 ? message.slice(0, 40) + "…" : message;
+
+  // ensure session exists (title only applied on first insert)
+  await upsertSession(sessionId, title);
+
 
   // 2️⃣ save user message
   await insertMessage({

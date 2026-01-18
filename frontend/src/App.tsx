@@ -6,12 +6,14 @@ import { ChatLayout } from "./components/ChatLayout";
 import { MessageList } from "./components/MessageList";
 import { ChatInput } from "./components/ChatInput";
 
+
 export default function App() {
-  const { sessions, activeSessionId, setActiveSessionId, createNewSession } =
+  const { sessions, activeSessionId, setActiveSessionId, createNewSession, deleteSession } =
     useSessions();
 
   const { messages, input, setInput, loading, sendMessage, bottomRef } =
     useChat(activeSessionId ?? "");
+
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
@@ -20,6 +22,7 @@ export default function App() {
         activeSessionId={activeSessionId}
         onSelect={setActiveSessionId}
         onNew={createNewSession}
+        onDelete={deleteSession}
       />
 
       <ChatLayout>
@@ -29,11 +32,7 @@ export default function App() {
           bottomRef={bottomRef as React.RefObject<HTMLDivElement>}
         />
 
-        <ChatInput
-          value={input}
-          onChange={setInput}
-          onSend={sendMessage}
-        />
+        <ChatInput value={input} onChange={setInput} onSend={sendMessage} />
       </ChatLayout>
     </div>
   );
