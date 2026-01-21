@@ -1,4 +1,5 @@
-import { HumanMessage } from "@langchain/core/messages";
+import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+import { SYSTEM_PROMPT } from "../config/systemPrompt";
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { ChatState } from "../state/chat.state";
 import { llmStreamNode } from "../nodes/llm.stream.node";
@@ -54,10 +55,18 @@ export async function handleChatStream(req: Request) {
 
         await streamingGraph.invoke({
           messages: [
-            ...history.reverse().map((m) => new HumanMessage(m.content)),
+            new SystemMessage(SYSTEM_PROMPT),
+            ...history
+              .reverse()
+              .map((m) =>
+                m.role === "user"
+                  ? new HumanMessage(m.content)
+                  : new AIMessage(m.content)
+              ),
             new HumanMessage(message),
           ],
         });
+
 
         // 4️⃣ save final AI message
         if (fullAIResponse.trim()) {

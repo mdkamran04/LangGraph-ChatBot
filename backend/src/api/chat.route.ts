@@ -1,5 +1,7 @@
 import { chatGraph } from "../graph";
-import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
+import { SYSTEM_PROMPT } from "../config/systemPrompt";
+
 import {
   upsertSession,
   insertMessage,
@@ -60,8 +62,12 @@ export async function handleChat(req: Request) {
 
   // 4️⃣ run LangGraph
   const result = await chatGraph.invoke({
-    messages: langchainMessages,
+    messages: [
+      new SystemMessage(SYSTEM_PROMPT),
+      ...langchainMessages,
+    ],
   });
+
 
   const aiContent = result.messages.at(-1)?.content as string;
 
