@@ -1,27 +1,57 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  check,
+} from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 /* ========== Sessions (Threads) ========== */
-export const sessions = sqliteTable("sessions", {
+export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(), // sessionId / threadId
   title: text("title"),
-  createdAt: integer("created_at")
-    .notNull()
-    .default(sql`(strftime('%s','now'))`),
-  updatedAt: integer("updated_at")
-    .notNull()
-    .default(sql`(strftime('%s','now'))`)
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "date",
+  })
+    .defaultNow()
+    .notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "date",
+  })
+    .defaultNow()
+    .notNull(),
 });
 
 /* ========== Messages ========== */
-export const messages = sqliteTable("messages", {
-  id: text("id").primaryKey(),
-  sessionId: text("session_id")
-    .notNull()
-    .references(() => sessions.id),
-  role: text("role").notNull(), // user | ai | system
-  content: text("content").notNull(),
-  createdAt: integer("created_at")
-    .notNull()
-    .default(sql`(strftime('%s','now'))`)
-});
+export const messages = pgTable(
+  "messages",
+  {
+    id: text("id").primaryKey(),
+
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, {
+        onDelete: "cascade",
+      }),
+
+    role: text("role").notNull(), // user | ai | system
+    content: text("content").notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    roleCheck: check(
+      "role_check",
+      sql`${table.role} in ('user', 'ai', 'system')`
+    ),
+  })
+);

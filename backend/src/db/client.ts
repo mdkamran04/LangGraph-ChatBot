@@ -1,6 +1,8 @@
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 
-const sqlite = new Database("chat.db");
+const sql = postgres(process.env.DATABASE_URL!, {
+  ssl: "require",
+});
 
-export const db = drizzle(sqlite);
+export const db = drizzle(sql);

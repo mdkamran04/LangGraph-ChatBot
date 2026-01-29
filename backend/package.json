@@ -6,7 +6,8 @@
     "@langchain/langgraph": "^1.0.15",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
-    "groq-sdk": "^0.37.0"
+    "groq-sdk": "^0.37.0",
+    "postgres": "^3.4.8"
   },
   "name": "langgraph-demo",
   "private": true,
@@ -16,7 +17,7 @@
     "drizzle-kit": "^0.31.8"
   },
   "scripts": {
-    "start":"bun src/server.ts"
+    "start": "bun src/server.ts"
   },
   "peerDependencies": {
     "typescript": "^5"

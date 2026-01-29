@@ -8,17 +8,19 @@ export async function upsertSession(
   sessionId: string,
   title?: string
 ) {
+  const now = new Date();
+
   await db
     .insert(sessions)
     .values({
       id: sessionId,
       title,
-      updatedAt: Math.floor(Date.now() / 1000),
+      updatedAt: now,
     })
     .onConflictDoUpdate({
       target: sessions.id,
       set: {
-        updatedAt: Math.floor(Date.now() / 1000),
+        updatedAt: now,
       },
     });
 }
