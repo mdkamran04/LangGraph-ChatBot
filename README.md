@@ -1,6 +1,7 @@
 # LangMiwi Chat App
 
-A full-stack AI chat application built with LangGraph, Bun, React, and SQLite. The project demonstrates how to design and ship a production-style conversational AI system with streaming responses, persistent memory, and a clean, scalable frontend architecture.
+A full-stack AI chat application built with LangGraph, Bun, React, and Supabase
+. The project demonstrates how to design and ship a production-style conversational AI system with streaming responses, persistent memory, and a clean, scalable frontend architecture.
 
 ## Overview
 
@@ -10,7 +11,8 @@ This application provides a ChatGPT-style interface backed by a LangGraph agent.
 
 * **Streaming Responses:** Real-time token streaming from the LLM to the frontend using LangChain streams and Server-Sent Events (SSE) logic.
 * **Session Management:** Create, switch between, and delete distinct chat sessions.
-* **Persistent Memory:** All conversations are stored in a local SQLite database, allowing context retention across page reloads.
+* **Persistent Memory:** All conversations are stored in a local Supabase
+ database, allowing context retention across page reloads.
 * **LangGraph Orchestration:** Uses stateful graph architecture to manage conversation flow and LLM interactions.
 * **High-Performance Backend:** Built on Bun for fast runtime execution and rapid package management.
 * **Type-Safe Database:** Utilizes Drizzle ORM for type-safe SQL interactions and schema management.
@@ -29,7 +31,8 @@ This application provides a ChatGPT-style interface backed by a LangGraph agent.
 * **Runtime:** Bun
 * **AI Orchestration:** LangGraph / LangChain
 * **LLM Provider:** Groq (via LangChain integration)
-* **Database:** SQLite
+* **Database:** Supabase
+
 * **ORM:** Drizzle ORM
 
 ## Architecture
@@ -50,7 +53,8 @@ Backend (Bun)
   |-- LangGraph StateGraph
   |     |-- LLM Node (streaming / non-streaming)
   |
-  |-- SQLite (Drizzle ORM)
+  |-- Supabase
+ (Drizzle ORM)
   |     |-- sessions
   |     |-- messages
   |
@@ -73,7 +77,8 @@ backend/
 │  │  └─ delete-session.route.ts
 │  │
 │  ├─ db/
-│  │  ├─ client.ts              # SQLite connection setup
+│  │  ├─ client.ts              # Supabase
+ connection setup
 │  │  ├─ schema.ts              # Drizzle table definitions
 │  │  └─ queries.ts             # DB helper functions
 │  │
@@ -124,7 +129,8 @@ frontend/
 
 1. **Initialization:** The user creates a new session or selects an existing one via `Sidebar`.
 2. **Input:** User types a message. The frontend optimistically updates the UI and sends a request to the backend.
-3. **State Loading:** The backend retrieves the conversation history from SQLite for the active `sessionId`.
+3. **State Loading:** The backend retrieves the conversation history from Supabase
+ for the active `sessionId`.
 4. **Graph Execution:**
 * The `StateGraph` is initialized with the retrieved history.
 * The user's new message is injected into the state.
@@ -132,7 +138,8 @@ frontend/
 
 
 5. **Streaming:** The LLM generates tokens. The backend streams these tokens immediately to the frontend via a `ReadableStream` response.
-6. **Persistence:** Once the generation is complete, the new user message and the full AI response are committed to the SQLite database via Drizzle.
+6. **Persistence:** Once the generation is complete, the new user message and the full AI response are committed to the Supabase
+ database via Drizzle.
 
 ## Memory Strategy
 
